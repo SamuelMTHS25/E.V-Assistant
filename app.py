@@ -1,9 +1,6 @@
-import asyncio
-import os
-import edge_tts
+import streamlit as st
 from google import genai
 from google.genai import types
-import streamlit as st
 
 # ==============================================================================
 # CONFIGURACIÓN DE LA PÁGINA WEB
@@ -26,10 +23,15 @@ st.markdown(
         text-align: center;
         font-family: 'Consolas', monospace;
     }
-    /* Estilo para compactar el grabador de audio y alinearlo perfectamente */
-    [data-testid="stAudioInput"] {
-        max-width: 120px !important;
-        margin-top: 10px;
+    .aviso-version {
+        background-color: rgba(0, 240, 255, 0.1);
+        border: 1px solid #00F0FF;
+        padding: 10px 15px;
+        border-radius: 8px;
+        text-align: center;
+        font-size: 14px;
+        color: #E0F7FA;
+        margin-bottom: 20px;
     }
     </style>
 """,
@@ -38,6 +40,16 @@ st.markdown(
 
 st.markdown("<h1>E.V. // NÚCLEO WEB EN LÍNEA</h1>", unsafe_allow_html=True)
 st.caption("Asistente personal de ingeniería y compañera virtual")
+
+# Aviso de la versión descargable con más funciones
+st.markdown(
+    """
+    <div class="aviso-version">
+        💡 <b>Nota de presentación:</b> Esta es la versión web básica. Existe una versión descargable con integración de voz avanzada y más funciones en desarrollo.
+    </div>
+""",
+    unsafe_allow_html=True,
+)
 
 # ==============================================================================
 # CONFIGURACIÓN SEGURA DE GEMINI
@@ -61,28 +73,8 @@ Tus respuestas son breves y directas (máximo 2 o 3 oraciones).
 IMPORTANTE: No uses asteriscos, emojis, negritas ni símbolos raros.
 """
 
-
 # ==============================================================================
-# FUNCIÓN PARA GENERAR VOZ CON EDGE-TTS
-# ==============================================================================
-async def generar_audio(texto, archivo_salida="voz_temp.mp3"):
-  voz = "es-MX-DaliaNeural"
-  communicate = edge_tts.Communicate(texto, voz)
-  await communicate.save(archivo_salida)
-
-
-def reproducir_voz(texto):
-  archivo = "voz_temp.mp3"
-  try:
-    asyncio.run(generar_audio(texto, archivo))
-    if os.path.exists(archivo):
-      st.audio(archivo, format="audio/mp3", autoplay=True)
-  except Exception:
-    pass
-
-
-# ==============================================================================
-# GESTIÓN DEL HISTORIAL
+# GESTIÓN DEL HISTORIAL DE CHAT
 # ==============================================================================
 if "mensajes" not in st.session_state:
   st.session_state.mensajes = [
@@ -95,55 +87,14 @@ if "mensajes" not in st.session_state:
       }
   ]
 
-if "ultimo_audio" not in st.session_state:
-  st.session_state.ultimo_audio = None
-
 for mensaje in st.session_state.mensajes:
   with st.chat_message(mensaje["role"]):
     st.markdown(mensaje["content"])
 
-# ==============================================================================
-# ENTRADAS DE USUARIO (TEXTO Y MICRÓFONO COMPACTOS)
-# ==============================================================================
-# Creamos dos columnas: una ancha para el chat y una pequeña para el micro al lado
-col_input, col_btn = st.columns([6, 1])
-
-contenido_usuario = None
-texto_para_historial = None
-
-with col_input:
-  texto_escrito = st.chat_input("Escribe tu consulta para E.V...")
-
-with col_btn:
-  audio_grabado = st.audio_input("🎙️")
-
-# Detectar si se envió audio
-if audio_grabado is not None and audio_grabado != st.session_state.ultimo_audio:
-  st.session_state.ultimo_audio = audio_grabado
-  bytes_audio = audio_grabado.read()
-  contenido_usuario = [
-      types.Part.from_bytes(data=bytes_audio, mime_type="audio/wav"),
-      (
-          "Escucha este mensaje de voz y respóndele de forma natural siguiendo"
-          " tu personalidad."
-      ),
-  ]
-  texto_para_historial = "🎙️ *(Mensaje de voz enviado)*"
-
-# O si se escribió texto
-elif texto_escrito:
-  contenido_usuario = texto_escrito
-  texto_para_historial = texto_escrito
-
-# ==============================================================================
-# PROCESAMIENTO CON GEMINI Y RESPUESTA
-# ==============================================================================
-if contenido_usuario is not None:
-  st.session_state.mensajes.append(
-      {"role": "user", "content": texto_para_historial}
-  )
+if user_input := st.chat_input("Escribe tu consulta para E.V..."):
+  st.session_state.mensajes.append({"role": "user", "content": user_input})
   with st.chat_message("user"):
-    st.markdown(texto_para_historial)
+    st.markdown(user_input)
 
   with st.chat_message("model"):
     with st.spinner("E.V. está procesando..."):
@@ -165,12 +116,10 @@ if contenido_usuario is not None:
             ),
         )
 
-        response = chat.send_message(contenido_usuario)
+        response = chat.send_message(user_input)
         respuesta_texto = response.text
 
         st.markdown(respuesta_texto)
-        reproducir_voz(respuesta_texto)
-
         st.session_state.mensajes.append(
             {"role": "model", "content": respuesta_texto}
         )

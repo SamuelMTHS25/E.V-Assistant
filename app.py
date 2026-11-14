@@ -112,10 +112,14 @@ if user_input := st.chat_input("Escribe tu consulta para E.V..."):
             model="gemini-3.5-flash-lite",
             history=historial_api if len(historial_api) > 0 else None,
             config=types.GenerateContentConfig(
-                system_instruction=PROMPT_DE_SISTEMA, temperature=0.7
+                system_instruction=PROMPT_DE_SISTEMA,
+                temperature=0.7,
+                tools=[
+                    {"google_search": {}}
+                ],  # <--- Esto le da acceso a internet en tiempo real
             ),
         )
-
+          
         response = chat.send_message(user_input)
         respuesta_texto = response.text
 

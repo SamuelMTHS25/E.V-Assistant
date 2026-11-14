@@ -108,9 +108,9 @@ if user_input := st.chat_input("Escribe tu consulta para E.V..."):
               )
           )
 
-        # Configuración del chat con la herramienta de búsqueda web oficial
+        # Usamos el modelo actualizado recomendado por la API
         chat = client_gemini.chats.create(
-            model="gemini-2.5-flash",
+            model="gemini-3.8-flash",
             history=historial_api if len(historial_api) > 0 else None,
             config=types.GenerateContentConfig(
                 system_instruction=PROMPT_DE_SISTEMA,

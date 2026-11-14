@@ -1,9 +1,9 @@
 import asyncio
 import os
-import streamlit as st
+import edge_tts
 from google import genai
 from google.genai import types
-import edge_tts
+import streamlit as st
 
 # ==============================================================================
 # CONFIGURACIÓN DE LA PÁGINA WEB
@@ -61,7 +61,6 @@ IMPORTANTE: No uses asteriscos, emojis, negritas ni símbolos raros.
 # FUNCIÓN PARA GENERAR VOZ CON EDGE-TTS
 # ==============================================================================
 async def generar_audio(texto, archivo_salida="voz_temp.mp3"):
-  # Usamos una voz en español muy natural (ej. Dalia o Elena de México/España)
   voz = "es-MX-DaliaNeural"
   communicate = edge_tts.Communicate(texto, voz)
   await communicate.save(archivo_salida)
@@ -74,11 +73,11 @@ def reproducir_voz(texto):
     if os.path.exists(archivo):
       st.audio(archivo, format="audio/mp3", autoplay=True)
   except Exception:
-    pass  # Si hay algún detalle con el audio, la aplicación sigue funcionando normal
+    pass
 
 
 # ==============================================================================
-# GESTIÓN DEL HISTORIAL DE CHAT
+# GESTIÓN DEL HISTORIAL Y ENTRADAS (VOZ Y TEXTO)
 # ==============================================================================
 if "mensajes" not in st.session_state:
   st.session_state.mensajes = [
@@ -91,17 +90,50 @@ if "mensajes" not in st.session_state:
       }
   ]
 
+if "ultimo_audio" not in st.session_state:
+  st.session_state.ultimo_audio = None
+
 for mensaje in st.session_state.mensajes:
   with st.chat_message(mensaje["role"]):
     st.markdown(mensaje["content"])
 
-if user_input := st.chat_input("Escribe tu consulta para E.V..."):
-  st.session_state.mensajes.append({"role": "user", "content": user_input})
+# Botón de micrófono en la interfaz
+audio_grabado = st.audio_input("🎙️ Habla con E.V.")
+texto_escrito = st.chat_input("O escribe tu consulta para E.V...")
+
+contenido_usuario = None
+texto_para_historial = None
+
+# Detectar si el usuario envió un audio nuevo
+if audio_grabado is not None and audio_grabado != st.session_state.ultimo_audio:
+  st.session_state.ultimo_audio = audio_grabado
+  bytes_audio = audio_grabado.read()
+  contenido_usuario = [
+      types.Part.from_bytes(data=bytes_audio, mime_type="audio/wav"),
+      (
+          "Escucha este mensaje de voz y respóndele de forma natural siguiendo"
+          " tu personalidad."
+      ),
+  ]
+  texto_para_historial = "🎙️ *(Mensaje de voz enviado)*"
+
+# Detectar si el usuario escribió texto
+elif texto_escrito:
+  contenido_usuario = texto_escrito
+  texto_para_historial = texto_escrito
+
+# ==============================================================================
+# PROCESAMIENTO CON GEMINI Y RESPUESTA CON VOZ
+# ==============================================================================
+if contenido_usuario is not None:
+  st.session_state.mensajes.append(
+      {"role": "user", "content": texto_para_historial}
+  )
   with st.chat_message("user"):
-    st.markdown(user_input)
+    st.markdown(texto_para_historial)
 
   with st.chat_message("model"):
-    with st.spinner("E.V. está procesando..."):
+    with st.spinner("E.V. está escuchando y procesando..."):
       try:
         historial_api = []
         for m in st.session_state.mensajes[:-1]:
@@ -120,12 +152,10 @@ if user_input := st.chat_input("Escribe tu consulta para E.V..."):
             ),
         )
 
-        response = chat.send_message(user_input)
+        response = chat.send_message(contenido_usuario)
         respuesta_texto = response.text
 
         st.markdown(respuesta_texto)
-
-        # Reproducir la voz automáticamente en la web
         reproducir_voz(respuesta_texto)
 
         st.session_state.mensajes.append(

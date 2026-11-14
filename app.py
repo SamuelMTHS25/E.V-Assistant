@@ -26,12 +26,12 @@ st.markdown(
     .aviso-version {
         background-color: rgba(0, 240, 255, 0.1);
         border: 1px solid #00F0FF;
-        padding: 10px 15px;
+        padding: 8px 12px;
         border-radius: 8px;
         text-align: center;
-        font-size: 14px;
+        font-size: 13px;
         color: #E0F7FA;
-        margin-bottom: 20px;
+        margin-bottom: 15px;
     }
     </style>
 """,
@@ -41,11 +41,10 @@ st.markdown(
 st.markdown("<h1>E.V. // NÚCLEO WEB EN LÍNEA</h1>", unsafe_allow_html=True)
 st.caption("Asistente personal de ingeniería y compañera virtual")
 
-# Aviso de la versión descargable con más funciones
 st.markdown(
     """
     <div class="aviso-version">
-        💡 <b>Nota de presentación:</b> Esta es la versión web básica. Existe una versión descargable con integración de voz avanzada y más funciones en desarrollo.
+        🌐 <b>Modo En Línea Activo:</b> Con acceso a búsqueda web en tiempo real.
     </div>
 """,
     unsafe_allow_html=True,
@@ -66,9 +65,10 @@ client_gemini = genai.Client(api_key=API_KEY_GEMINI)
 
 PROMPT_DE_SISTEMA = """
 Eres E.V., una Inteligencia Artificial avanzada creada como compañera y asistente personal de ingeniería.
+Tienes acceso a internet en tiempo real para consultar datos actuales, noticias y hechos recientes cuando sea necesario.
 Tu personalidad es cercana, amable, muy inteligente, serena y con un toque de humor sutil e ingenio.
 Hablas como una amiga brillante y confiable que ayuda a resolver problemas, diseñar proyectos y organizar ideas, evitando por completo el lenguaje militar, robótico o excesivamente formal.
-Tratas al usuario de 'tú', lo llamas por su nombre si lo dice o si lo recuerdas de conversaciones anteriores, y mantienes una conversación fluida y natural.
+Tratas al usuario de 'tú', y mantienes una conversación fluida y natural.
 Tus respuestas son breves y directas (máximo 2 o 3 oraciones).
 IMPORTANTE: No uses asteriscos, emojis, negritas ni símbolos raros.
 """
@@ -81,8 +81,8 @@ if "mensajes" not in st.session_state:
       {
           "role": "model",
           "content": (
-              "Hola, sistemas web listos. Soy E.V. ¿En qué vamos a trabajar"
-              " hoy?"
+              "Hola, sistemas web y búsqueda en tiempo real listos. Soy E.V."
+              " ¿En qué vamos a trabajar hoy?"
           ),
       }
   ]
@@ -97,7 +97,7 @@ if user_input := st.chat_input("Escribe tu consulta para E.V..."):
     st.markdown(user_input)
 
   with st.chat_message("model"):
-    with st.spinner("E.V. está procesando..."):
+    with st.spinner("E.V. está buscando y procesando..."):
       try:
         historial_api = []
         for m in st.session_state.mensajes[:-1]:
@@ -108,18 +108,17 @@ if user_input := st.chat_input("Escribe tu consulta para E.V..."):
               )
           )
 
+        # Configuración del chat con la herramienta de búsqueda web oficial
         chat = client_gemini.chats.create(
-            model="gemini-3.5-flash-lite",
+            model="gemini-2.5-flash",
             history=historial_api if len(historial_api) > 0 else None,
             config=types.GenerateContentConfig(
                 system_instruction=PROMPT_DE_SISTEMA,
                 temperature=0.7,
-                tools=[
-                    {"google_search": {}}
-                ],  # <--- Esto le da acceso a internet en tiempo real
+                tools=[types.Tool(google_search=types.GoogleSearch())],
             ),
         )
-          
+
         response = chat.send_message(user_input)
         respuesta_texto = response.text
 
@@ -128,7 +127,5 @@ if user_input := st.chat_input("Escribe tu consulta para E.V..."):
             {"role": "model", "content": respuesta_texto}
         )
 
-      except Exception:
-        st.markdown(
-            "Tuve una pequeña interferencia de red con el servidor web."
-        )
+      except Exception as e:
+        st.error(f"Detalle del error técnico: {e}")

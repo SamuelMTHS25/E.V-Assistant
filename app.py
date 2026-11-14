@@ -77,7 +77,7 @@ def reproducir_voz(texto):
 
 
 # ==============================================================================
-# GESTIÓN DEL HISTORIAL Y ENTRADAS (VOZ Y TEXTO)
+# GESTIÓN DEL HISTORIAL
 # ==============================================================================
 if "mensajes" not in st.session_state:
   st.session_state.mensajes = [
@@ -97,14 +97,21 @@ for mensaje in st.session_state.mensajes:
   with st.chat_message(mensaje["role"]):
     st.markdown(mensaje["content"])
 
-# Botón de micrófono en la interfaz
-audio_grabado = st.audio_input("🎙️ Habla con E.V.")
-texto_escrito = st.chat_input("O escribe tu consulta para E.V...")
+# ==============================================================================
+# ORGANIZACIÓN EN COLUMNAS (TEXTO Y MICRÓFONO JUNTOS)
+# ==============================================================================
+col_chat, col_mic = st.columns([5, 1])
 
 contenido_usuario = None
 texto_para_historial = None
 
-# Detectar si el usuario envió un audio nuevo
+with col_chat:
+  texto_escrito = st.chat_input("Escribe tu consulta para E.V...")
+
+with col_mic:
+  audio_grabado = st.audio_input("🎙️ Audio")
+
+# Detectar si habló por el micro
 if audio_grabado is not None and audio_grabado != st.session_state.ultimo_audio:
   st.session_state.ultimo_audio = audio_grabado
   bytes_audio = audio_grabado.read()
@@ -117,13 +124,13 @@ if audio_grabado is not None and audio_grabado != st.session_state.ultimo_audio:
   ]
   texto_para_historial = "🎙️ *(Mensaje de voz enviado)*"
 
-# Detectar si el usuario escribió texto
+# O si escribió texto
 elif texto_escrito:
   contenido_usuario = texto_escrito
   texto_para_historial = texto_escrito
 
 # ==============================================================================
-# PROCESAMIENTO CON GEMINI Y RESPUESTA CON VOZ
+# PROCESAMIENTO CON GEMINI Y RESPUESTA
 # ==============================================================================
 if contenido_usuario is not None:
   st.session_state.mensajes.append(
@@ -133,7 +140,7 @@ if contenido_usuario is not None:
     st.markdown(texto_para_historial)
 
   with st.chat_message("model"):
-    with st.spinner("E.V. está escuchando y procesando..."):
+    with st.spinner("E.V. está procesando..."):
       try:
         historial_api = []
         for m in st.session_state.mensajes[:-1]:

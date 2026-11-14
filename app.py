@@ -26,6 +26,11 @@ st.markdown(
         text-align: center;
         font-family: 'Consolas', monospace;
     }
+    /* Estilo para compactar el grabador de audio y alinearlo perfectamente */
+    [data-testid="stAudioInput"] {
+        max-width: 120px !important;
+        margin-top: 10px;
+    }
     </style>
 """,
     unsafe_allow_html=True,
@@ -98,20 +103,21 @@ for mensaje in st.session_state.mensajes:
     st.markdown(mensaje["content"])
 
 # ==============================================================================
-# ORGANIZACIÓN EN COLUMNAS (TEXTO Y MICRÓFONO JUNTOS)
+# ENTRADAS DE USUARIO (TEXTO Y MICRÓFONO COMPACTOS)
 # ==============================================================================
-col_chat, col_mic = st.columns([5, 1])
+# Creamos dos columnas: una ancha para el chat y una pequeña para el micro al lado
+col_input, col_btn = st.columns([6, 1])
 
 contenido_usuario = None
 texto_para_historial = None
 
-with col_chat:
+with col_input:
   texto_escrito = st.chat_input("Escribe tu consulta para E.V...")
 
-with col_mic:
-  audio_grabado = st.audio_input("🎙️ Audio")
+with col_btn:
+  audio_grabado = st.audio_input("🎙️")
 
-# Detectar si habló por el micro
+# Detectar si se envió audio
 if audio_grabado is not None and audio_grabado != st.session_state.ultimo_audio:
   st.session_state.ultimo_audio = audio_grabado
   bytes_audio = audio_grabado.read()
@@ -124,7 +130,7 @@ if audio_grabado is not None and audio_grabado != st.session_state.ultimo_audio:
   ]
   texto_para_historial = "🎙️ *(Mensaje de voz enviado)*"
 
-# O si escribió texto
+# O si se escribió texto
 elif texto_escrito:
   contenido_usuario = texto_escrito
   texto_para_historial = texto_escrito

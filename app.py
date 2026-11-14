@@ -1,6 +1,9 @@
+import asyncio
+import os
 import streamlit as st
 from google import genai
 from google.genai import types
+import edge_tts
 
 # ==============================================================================
 # CONFIGURACIÓN DE LA PÁGINA WEB
@@ -32,7 +35,7 @@ st.markdown("<h1>E.V. // NÚCLEO WEB EN LÍNEA</h1>", unsafe_allow_html=True)
 st.caption("Asistente personal de ingeniería y compañera virtual")
 
 # ==============================================================================
-# CONFIGURACIÓN SEGURA DE GEMINI (USANDO SECRETS)
+# CONFIGURACIÓN SEGURA DE GEMINI
 # ==============================================================================
 try:
   API_KEY_GEMINI = st.secrets["GEMINI_API_KEY"]
@@ -53,8 +56,29 @@ Tus respuestas son breves y directas (máximo 2 o 3 oraciones).
 IMPORTANTE: No uses asteriscos, emojis, negritas ni símbolos raros.
 """
 
+
 # ==============================================================================
-# GESTIÓN DEL HISTORIAL DE CHAT EN STREAMLIT
+# FUNCIÓN PARA GENERAR VOZ CON EDGE-TTS
+# ==============================================================================
+async def generar_audio(texto, archivo_salida="voz_temp.mp3"):
+  # Usamos una voz en español muy natural (ej. Dalia o Elena de México/España)
+  voz = "es-MX-DaliaNeural"
+  communicate = edge_tts.Communicate(texto, voz)
+  await communicate.save(archivo_salida)
+
+
+def reproducir_voz(texto):
+  archivo = "voz_temp.mp3"
+  try:
+    asyncio.run(generar_audio(texto, archivo))
+    if os.path.exists(archivo):
+      st.audio(archivo, format="audio/mp3", autoplay=True)
+  except Exception:
+    pass  # Si hay algún detalle con el audio, la aplicación sigue funcionando normal
+
+
+# ==============================================================================
+# GESTIÓN DEL HISTORIAL DE CHAT
 # ==============================================================================
 if "mensajes" not in st.session_state:
   st.session_state.mensajes = [
@@ -100,6 +124,10 @@ if user_input := st.chat_input("Escribe tu consulta para E.V..."):
         respuesta_texto = response.text
 
         st.markdown(respuesta_texto)
+
+        # Reproducir la voz automáticamente en la web
+        reproducir_voz(respuesta_texto)
+
         st.session_state.mensajes.append(
             {"role": "model", "content": respuesta_texto}
         )
